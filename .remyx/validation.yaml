@@ -2,31 +2,65 @@ loop: {max_iterations: 8, fix_code: true}
 benchmarks:
   - name: segformer3d-brats-architecture-parity
     suite: "notebook:eval/eval_segformer3d_brats_parity.ipynb"
-    scorer: param_count_relative_error
-    baseline: main
+    scorer: dice_gap
+    baseline: dev
     metrics:
-      - name: param_count_relative_error
+      - name: dice_gap
         role: target
-        direction: min
-        threshold: 0.056
+        direction: max
+        threshold: -0.05
       - name: existing_nets_import_success_rate
         role: guardrail
         direction: max
         threshold: 1.0
+      - name: segformer3d_dice
+        role: cost
+        direction: max
+        threshold: 0.0
+      - name: segresnet_dice
+        role: cost
+        direction: max
+        threshold: 0.0
+      - name: segformer3d_params
+        role: cost
+        direction: min
+        threshold: 10000000
+      - name: segresnet_params
+        role: cost
+        direction: min
+        threshold: 10000000
+      - name: segformer3d_train_time_s
+        role: cost
+        direction: min
+        threshold: 1800
+      - name: segresnet_train_time_s
+        role: cost
+        direction: min
+        threshold: 1800
     policy: {guardrail_veto: true}
 held_constant:
-  - "input geometry: (1, 4, 128, 128, 128), the paper's BraTS-style 4-channel volume at 128 cubed"
-  - "default paper-cited hyperparameters: embed_dims=(32,64,160,256), depths=(2,2,2,2), num_heads=(1,2,5,8), sr_ratios=(4,2,1,1), mlp_ratios=(4,4,4,4), decoder_head_embedding_dim=128"
-  - "paper reference parameter figure of 4.5M used as the fixed comparison constant on both arms"
-  - "torch seed fixed for the forward-pass smoke check"
+  - "same fixed-seed synthetic BraTS-shaped subset: 8 training volumes, 4 validation volumes, generated with the same torch.Generator seed for both models (no external dataset download, so both arms see byte-identical inputs deterministically)"
+  - "same crop geometry: (64, 64, 64) voxels, same seed, same synthetic generation routine for both models"
+  - "same optimizer, learning rate and loss: Adam(lr=1e-4) with DiceLoss(sigmoid=True, squared_pred=True), identical for both models"
+  - "same fixed step budget: 200 from-scratch training iterations for both models, no pretrained weights for either"
+  - "same torch/numpy/monai seed across both models via monai.utils.set_determinism"
 avoid:
-  - "no BraTS dataset download, loss, or optimizer step is exercised: the PR itself defers full Dice-parity training to future GPU work, so this script measures the architecture-size proxy the PR's own VALIDATION.md reports, not trained accuracy"
-  - "no wall-clock timing is used as a metric; only parameter counts and a shape check are measured"
-  - "no invented Dice numbers: BraTS mean Dice is left out of the metrics entirely because no paper table row is present in context"
+  - "this is a fixed-budget, from-scratch comparison on a small synthetic BraTS-shaped subset -- a parity signal, not a reproduction of either paper's full training protocol or converged accuracy on real BraTS data"
+  - "no BraTS dataset download is exercised: fetching Task01_BrainTumour requires an unpinned multi-gigabyte external download that is neither deterministic nor safe to depend on for every run of this eval, so fixed-seed synthetic volumes of the same shape are used instead"
+  - "no two-arm delta is used for the target: the dev baseline cannot import SegFormer3D at all, so both models are trained and scored from the feature arm and the gap is read against a fixed bound"
+  - "train time and parameter counts are reported only as cost references, never as a pass/fail gate on model quality"
+  - "no invented paper Dice numbers: only Dice computed by this script's own from-scratch training run is reported"
 compute:
-  tier: cpu
+  tier: gpu
+  timeout_s: 3600
 provenance:
-  param_count_relative_error: "user_guidance (BraTS parity ask) refined by claim_analysis's architecture-proxy fallback, numeric anchor from PR VALIDATION.md cross-check table (4.5M paper vs 4.25M impl)"
-  existing_nets_import_success_rate: "inferred — regression guardrail for the `monai/networks/nets/__init__.py` edit this PR makes, since that file is shared by every existing net"
-  held_constant: "protocol_doc:monai/networks/nets/segformer3d.py (VALIDATION.md paper-default config table)"
-  suite: "synthesized (R1 maturity repo: tests + CI only, no BraTS benchmark harness exists to run (a) against)"
+  dice_gap: "user_guidance (fixed-budget from-scratch Dice comparison on a synthetic BraTS-shaped subset, no two-arm delta)"
+  existing_nets_import_success_rate: "inferred -- regression guardrail for the monai/networks/nets/__init__.py edit this PR makes, since that file is shared by every existing net"
+  segformer3d_dice: "user_guidance (mean validation Dice per model)"
+  segresnet_dice: "user_guidance (mean validation Dice per model)"
+  segformer3d_params: "user_guidance (params reported as a cost reference only)"
+  segresnet_params: "user_guidance (params reported as a cost reference only)"
+  segformer3d_train_time_s: "user_guidance (train time reported as a cost reference only)"
+  segresnet_train_time_s: "user_guidance (train time reported as a cost reference only)"
+  held_constant: "user_guidance (same subset, crops, optimizer, iterations, seed) refined by protocol_doc:monai/networks/nets/segformer3d.py for the channel/crop geometry; dataset download replaced with fixed-seed synthetic generation for determinism"
+  suite: "synthesized (R1 maturity repo: tests + CI only, no BraTS benchmark harness exists to run (a) against); uses fixed-seed synthetic volumes shaped like MONAI's own DecathlonDataset output to avoid an unpinned external download"
