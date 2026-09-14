@@ -37,6 +37,14 @@ benchmarks:
         role: cost
         direction: min
         threshold: 1800
+      - name: segformer3d_max_mem_mb
+        role: cost
+        direction: min
+        threshold: 40000
+      - name: segresnet_max_mem_mb
+        role: cost
+        direction: min
+        threshold: 40000
     policy: {guardrail_veto: true}
 held_constant:
   - "same fixed 8/4 subset of the real Task01_BrainTumour training list: deterministically selected with one fixed seed for both models, identical inputs for both arms"
@@ -49,7 +57,7 @@ avoid:
   - "this is a fixed-budget, from-scratch comparison on a fixed real 8/4 Task01_BrainTumour subset -- a parity signal, not a reproduction of either paper's full training protocol or fully converged accuracy on all of BraTS"
   - "the multi-gigabyte Task01_BrainTumour download is now exercised per user_guidance; it is fetched once into the working directory and cached, so repeat invocations of this script must detect the existing cache and skip re-downloading to stay practical"
   - "no two-arm delta is used for the target: the dev baseline cannot import SegFormer3D at all, so both models are trained and scored from the feature arm and the gap is read against a fixed bound"
-  - "train time and parameter counts are reported only as cost references, never as a pass/fail gate on model quality"
+  - "train time, parameter counts and peak device memory are reported only as cost references, never as a pass/fail gate on model quality"
   - "no invented paper Dice numbers: only Dice computed by this script's own from-scratch training run on the real cached subset is reported"
   - "single seed only, as instructed: no seed-to-seed variance estimate exists for dice_gap, so the fixed -0.05 tolerance band remains a fixed bound rather than a noise-derived one"
 compute:
@@ -62,8 +70,10 @@ provenance:
   segresnet_dice: "user_guidance (mean validation Dice per model)"
   segformer3d_params: "user_guidance (params reported as a cost reference only)"
   segresnet_params: "user_guidance (params reported as a cost reference only)"
-  segformer3d_train_time_s: "user_guidance (train time reported as a cost reference only)"
-  segresnet_train_time_s: "user_guidance (train time reported as a cost reference only)"
+  segformer3d_train_time_s: "user_guidance (train time reported as a cost reference only; median-per-iteration extrapolation after a warm-up, per gpu-tier measurement practice)"
+  segresnet_train_time_s: "user_guidance (train time reported as a cost reference only; median-per-iteration extrapolation after a warm-up, per gpu-tier measurement practice)"
+  segformer3d_max_mem_mb: "inferred -- peak device memory via torch.cuda.max_memory_allocated, required for gpu-tier wall-clock/device measurements"
+  segresnet_max_mem_mb: "inferred -- peak device memory via torch.cuda.max_memory_allocated, required for gpu-tier wall-clock/device measurements"
   held_constant: "user_guidance (same fixed 8/4 subset and seed, downloaded once via monai.apps.DecathlonDataset) refined by protocol_doc:monai/networks/nets/segformer3d.py for the channel/crop geometry"
   compute: "inferred -- timeout_s raised from 3600 to 5400 to cover the one-time Task01_BrainTumour download alongside the unchanged 200-iteration x2-model training budget"
-  suite: "synthesized (R1 maturity repo: tests + CI only, no BraTS benchmark harness exists to run (a) against); now loads the real cached Task01_BrainTumour subset via monai.apps.DecathlonDataset per user_guidance instead of synthetic volumes"
+  suite: "synthesized (R1 maturity repo: tests + CI only, no BraTS benchmark harness exists to run (a) against); loads the real cached Task01_BrainTumour subset via monai.apps.DecathlonDataset per user_guidance instead of synthetic volumes"
