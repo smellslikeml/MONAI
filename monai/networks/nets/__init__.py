@@ -97,6 +97,7 @@ from .resnet import (
     resnet152,
     resnet200,
 )
+from .segformer3d import SegFormer3D
 from .segresnet import SegResNet, SegResNetVAE
 from .segresnet_ds import SegResNetDS, SegResNetDS2
 from .senet import (

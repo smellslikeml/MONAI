@@ -508,6 +508,11 @@ Nets
 .. autoclass:: EfficientNetBNFeatures
   :members:
 
+`SegFormer3D`
+~~~~~~~~~~~~~
+.. autoclass:: SegFormer3D
+  :members:
+
 `SegResNet`
 ~~~~~~~~~~~
 .. autoclass:: SegResNet
