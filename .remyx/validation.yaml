@@ -1,7 +1,10 @@
 loop: {max_iterations: 8, fix_code: true}
 benchmarks:
   - name: segformer3d-brats-architecture-parity
-    suite: "notebook:eval/eval_segformer3d_brats_parity.ipynb"
+    suite:
+      notebook:
+        path: "eval/eval_segformer3d_brats_parity.ipynb"
+        packages: [nibabel]
     scorer: dice_gap
     baseline: dev
     metrics:
@@ -56,7 +59,7 @@ held_constant:
 avoid:
   - "this is a fixed-budget, from-scratch comparison on a fixed real 8/4 Task01_BrainTumour subset -- a parity signal, not a reproduction of either paper's full training protocol or fully converged accuracy on all of BraTS"
   - "the multi-gigabyte Task01_BrainTumour download is now exercised per user_guidance; it is fetched once into the working directory and cached, so repeat invocations of this script must detect the existing cache and skip re-downloading to stay practical"
-  - "no two-arm delta is used for the target: the dev baseline cannot import SegFormer3D at all, so both models are trained and scored from the feature arm and the gap is read against a fixed bound"
+  - "baseline: dev is retained: the script's SegFormer3D import is wrapped in a narrow try/except (ImportError, AttributeError) so it fails cleanly on the dev checkout, where has_segformer3d is False and that arm's metrics degrade to zero, while SegResNet still trains for real on both arms -- this is the required baseline-vs-head execution, not a two-arm delta on the target itself"
   - "train time, parameter counts and peak device memory are reported only as cost references, never as a pass/fail gate on model quality"
   - "no invented paper Dice numbers: only Dice computed by this script's own from-scratch training run on the real cached subset is reported"
   - "single seed only, as instructed: no seed-to-seed variance estimate exists for dice_gap, so the fixed -0.05 tolerance band remains a fixed bound rather than a noise-derived one"
@@ -64,9 +67,9 @@ compute:
   tier: gpu
   timeout_s: 5400
 provenance:
-  dice_gap: "user_guidance (fixed-budget from-scratch Dice comparison on the real Task01_BrainTumour 8/4 subset, no two-arm delta)"
-  existing_nets_import_success_rate: "inferred -- regression guardrail for the monai/networks/nets/__init__.py edit this PR makes, since that file is shared by every existing net"
-  segformer3d_dice: "user_guidance (mean validation Dice per model)"
+  dice_gap: "user_guidance (fixed-budget from-scratch Dice comparison on the real Task01_BrainTumour 8/4 subset, computed within the feature/head run; the dev checkout produces a degraded, zeroed value for this metric via the script's defensive import)"
+  existing_nets_import_success_rate: "inferred -- regression guardrail for the monai/networks/nets/__init__.py edit this PR makes, since that file is shared by every existing net; measured on both dev and head"
+  segformer3d_dice: "user_guidance (mean validation Dice per model; zero on dev, where SegFormer3D cannot be imported)"
   segresnet_dice: "user_guidance (mean validation Dice per model)"
   segformer3d_params: "user_guidance (params reported as a cost reference only)"
   segresnet_params: "user_guidance (params reported as a cost reference only)"
@@ -74,6 +77,8 @@ provenance:
   segresnet_train_time_s: "user_guidance (train time reported as a cost reference only; median-per-iteration extrapolation after a warm-up, per gpu-tier measurement practice)"
   segformer3d_max_mem_mb: "inferred -- peak device memory via torch.cuda.max_memory_allocated, required for gpu-tier wall-clock/device measurements"
   segresnet_max_mem_mb: "inferred -- peak device memory via torch.cuda.max_memory_allocated, required for gpu-tier wall-clock/device measurements"
+  baseline: "corrected back to `dev`: the script's defensive import of SegFormer3D already fails cleanly and degrades to zeroed metrics on the dev checkout per system rule 2, so there is no need to skip running the script against baseline -- the target metric's value is still read from the head run against a fixed bound, not a cross-arm delta"
+  packages: "inferred -- nibabel added because monai.apps.DecathlonDataset/LoadImaged reads real NIfTI volumes and nibabel is not part of MONAI's core pyproject dependencies"
   held_constant: "user_guidance (same fixed 8/4 subset and seed, downloaded once via monai.apps.DecathlonDataset) refined by protocol_doc:monai/networks/nets/segformer3d.py for the channel/crop geometry"
   compute: "inferred -- timeout_s raised from 3600 to 5400 to cover the one-time Task01_BrainTumour download alongside the unchanged 200-iteration x2-model training budget"
-  suite: "synthesized (R1 maturity repo: tests + CI only, no BraTS benchmark harness exists to run (a) against); loads the real cached Task01_BrainTumour subset via monai.apps.DecathlonDataset per user_guidance instead of synthetic volumes; execution bugs from the prior attempt (nondeterministic subset selection, a re-download-on-every-run caching bug) are fixed in the script per user_guidance 'fix the issues in the test and run again'"
+  suite: "synthesized (R1 maturity repo: tests + CI only, no BraTS benchmark harness exists to run (a) against); loads the real cached Task01_BrainTumour subset via monai.apps.DecathlonDataset per user_guidance instead of synthetic volumes; execution bugs from the prior attempt (nondeterministic subset selection, a re-download-on-every-run caching bug) are fixed in this revision per user_guidance 'fix the issues in the test and run again'; the baseline field is restored to `dev` since the earlier switch to `none` was itself a bug, not a fix, per system rule 2"
