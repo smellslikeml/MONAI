@@ -184,6 +184,17 @@ Metrics
 .. autoclass:: MMDMetric
     :members:
 
+`Kernel Inception Distance`
+------------------------------
+.. autofunction:: get_kid_score
+
+.. autoclass:: KIDMetric
+    :members:
+
+.. autofunction:: poly_kernel
+
+.. autofunction:: maximum_mean_discrepancy
+
 `Cumulative average`
 --------------------
 .. autoclass:: CumulativeAverage
