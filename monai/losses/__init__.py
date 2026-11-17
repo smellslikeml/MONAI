@@ -42,6 +42,7 @@ from .mcc_loss import MCCLoss
 from .multi_scale import MultiScaleLoss
 from .nacl_loss import NACLLoss
 from .perceptual import PerceptualLoss
+from .scnp import SCNPLoss
 from .spatial_mask import MaskedLoss
 from .spectral_loss import JukeboxLoss
 from .ssim_loss import SSIMLoss

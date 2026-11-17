@@ -177,3 +177,8 @@ Loss Wrappers
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: DeepSupervisionLoss
     :members:
+
+`SCNPLoss`
+~~~~~~~~~~
+.. autoclass:: SCNPLoss
+    :members:
